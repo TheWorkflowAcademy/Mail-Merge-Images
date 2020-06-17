@@ -1,0 +1,33 @@
+contactinfo = zoho.crm.getRecordById("Contacts",contactid);
+// Get the attachmentID and filename of the file in the CRM File Upload field
+fileupload = ifnull(contactinfo.get("***NAME OF FILE UPLOAD FIELD***"),"");
+fileupload = fileupload.get(0);
+attachmentId = fileupload.get("attachment_Id");
+filename = fileupload.get("file_Name");
+fname = encodeurl(filename).toString();
+// Download the file
+downloadFile = invokeurl
+[
+url :"https://www.zohoapis.com/crm/v2/Contacts/" + contactid + "/Attachments/" + attachmentId
+type :GET
+connection:"***ZOHO CRM CONNECTION***"
+];
+// Upload the file to Workdrive with the Folder ID
+upload = zoho.workdrive.uploadFile(downloadFile,"***FOLDERID***",fname,false,"***WORKDRIVE CONNECTION***");
+// Get the resource ID of the uploaded file
+resourceid = upload.get("data").get(0).get("attributes").get("resource_id");
+// Use the resource ID of the file to get its Workdrive download link
+param = {"data":{"attributes":{"resource_id":resourceid,"link_name":"downloadLink","link_type":"download","request_user_data":false,"allow_download":true},"type":"links"}};
+response = invokeurl
+[
+url :"https://workdrive.zoho.com/api/v1/links"
+type :POST
+parameters:param.toString()
+headers:{"Accept":"application/vnd.api+json"}
+connection:"***WORKDRIVE CONNECTION***"
+];
+// Get the downloadid of the file through its download link
+downloadid = response.get("data").get("id");
+// Insert the downloadid into the Company Logo URL field with the relevant link
+imageurl = "https://workdrive.zohoexternal.com/external/" + downloadid + "/download?directDownload=true";
+update = zoho.crm.updateRecord("Contacts",contactid,{"***NAME OF STRING FIELD IN CRM TO STORE THE IMAGE EMBED URL***":imageurl});
